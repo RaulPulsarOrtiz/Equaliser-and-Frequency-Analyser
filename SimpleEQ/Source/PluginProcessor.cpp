@@ -167,6 +167,7 @@ bool SimpleEQAudioProcessor::hasEditor() const
 juce::AudioProcessorEditor* SimpleEQAudioProcessor::createEditor()
 {
     return new SimpleEQAudioProcessorEditor (*this);
+    //return new GenericAudioProcessorEditor(*this);
 }
 
 //==============================================================================
@@ -181,6 +182,40 @@ void SimpleEQAudioProcessor::setStateInformation (const void* data, int sizeInBy
 {
     // You should use this method to restore your parameters from this memory block,
     // whose contents will have been created by the getStateInformation() call.
+}
+
+AudioProcessorValueTreeState::ParameterLayout SimpleEQAudioProcessor::createParameterLayout()
+{
+    AudioProcessorValueTreeState::ParameterLayout layout;
+    
+    layout.add(std::make_unique<AudioParameterFloat>("LowCut Freq", "LowCut Freq",
+        NormalisableRange<float>(20.f, 20000.f, 1.f, 1.f), 20.f));
+
+    layout.add(std::make_unique<AudioParameterFloat>("HighCut Freq", "HighCut Freq",
+        NormalisableRange<float>(20.f, 20000.f, 1.f, 1.f), 20000.f));
+
+    layout.add(std::make_unique<AudioParameterFloat>("Peak Freq", "Peak Freq",
+        NormalisableRange<float>(20.f, 20000.f, 1.f, 1.f), 750.f));
+
+    layout.add(std::make_unique<AudioParameterFloat>("Peak Gain", "Peak Gain",
+        NormalisableRange<float>(-24.f, 24.f, 0.5f, 1.f), 0.0f));
+
+    layout.add(std::make_unique<AudioParameterFloat>("Peak Quality", "Peak Quality",
+        NormalisableRange<float>(0.1f, 10.f, 0.05f, 1.f), 1.f));
+
+    StringArray stringArray;
+    for (int i = 0; i, 4; ++i)
+    {
+        String str;
+        str << (12 + i * 12);
+        str << " dB/Oct";
+        stringArray.add(str);
+    }
+
+    layout.add(std::make_unique<AudioParameterChoice>("LowCut Slope", "LowCut Slope", stringArray, 0));
+    layout.add(std::make_unique<AudioParameterChoice>("HighCut Slope", "HighCut Slope", stringArray, 0));
+
+        return layout;
 }
 
 //==============================================================================

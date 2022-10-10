@@ -57,5 +57,10 @@ public:
 
 private:
     //==============================================================================
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SimpleEQAudioProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SimpleEQAudioProcessor)
+
+        using Filter = juce::dsp::IIR::Filter<float>;  // 12dB per octave
+        using CutFilter = juce::dsp::ProcessorChain<Filter, Filter, Filter, Filter>;
+        using MonoChain = juce::dsp::ProcessorChain<CutFilter, Filter, CutFilter>; // Mono signal path
+        MonoChain leftChain, rightChain;
 };

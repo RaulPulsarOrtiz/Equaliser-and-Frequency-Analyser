@@ -18,7 +18,7 @@ enum Slope
     Slope_48
 };
 
-struct ChainSettings
+struct ChainSettings //Extract our parameters from the AudioProcesorValueTreeState
 {
     float peakFreq{ 0 }, peakGainInDecibels{ 0 }, peakQuality{ 1.f };
     float lowCutFreq{ 0 }, highCutFreq{ 0 };
@@ -70,16 +70,17 @@ public:
     //==============================================================================
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
-    static AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+    static AudioProcessorValueTreeState::ParameterLayout createParameterLayout(); //needs to be public so the GUI can attach all the knobs and combo boxes etc
     AudioProcessorValueTreeState apvts{ *this, nullptr, "Parameters", createParameterLayout() };
 
 private:
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SimpleEQAudioProcessor)
 
+        //Declaration of the Filters:
         using Filter = juce::dsp::IIR::Filter<float>;  // 12dB per octave
-        using CutFilter = juce::dsp::ProcessorChain<Filter, Filter, Filter, Filter>;
-        using MonoChain = juce::dsp::ProcessorChain<CutFilter, Filter, CutFilter>; // Mono signal path
+        using CutFilter = juce::dsp::ProcessorChain<Filter, Filter, Filter, Filter>; 
+        using MonoChain = juce::dsp::ProcessorChain<CutFilter, Filter, CutFilter>; // Mono signal path.  Processor Chain needs a  processor context to be pass to it, in order to run the audio through the links in the Chain.
         MonoChain leftChain, rightChain;
 
         enum ChainPositions
@@ -88,4 +89,59 @@ private:
             Peak,
             HighCut
         };
+
+        void updatePeakFilter(const ChainSettings& chainSettings);
+        using Coefficients = Filter::CoefficientsPtr;
+        static void updateCoefficients(Coefficients& old, const Coefficients& replacements);
+
+        template<typename ChainType, typename CoefficientType>
+        void updateCutFilter(ChainType& leftLowCut, const CoefficientType& cutCoefficients, const ChainSettings& chainSettings)
+                                                             
+        {
+
+            leftLowCut.template setBypassed<0>(true);
+            leftLowCut.template setBypassed<1>(true);
+            leftLowCut.template setBypassed<2>(true);
+            leftLowCut.template setBypassed<3>(true);
+
+            switch (chainSettings.lowCutSlope)
+            {
+            case Slope_12:
+            {
+                *leftLowCut.template get<0>().coefficients = *cutCoefficients[0];
+                leftLowCut.template setBypassed<0>(false);
+                break;
+            }
+            case Slope_24:
+            {
+                *leftLowCut.template get<0>().coefficients = *cutCoefficients[0];
+                leftLowCut.template setBypassed<0>(false);
+                *leftLowCut.template get<1>().coefficients = *cutCoefficients[1];
+                leftLowCut.template setBypassed<1>(false);
+                break;
+            }
+            case Slope_36:
+            {
+                *leftLowCut.template get<0>().coefficients = *cutCoefficients[0];
+                leftLowCut.template setBypassed<0>(false);
+                *leftLowCut.template get<1>().coefficients = *cutCoefficients[1];
+                leftLowCut.template setBypassed<1>(false);
+                *leftLowCut.template get<2>().coefficients = *cutCoefficients[2];
+                leftLowCut.template setBypassed<2>(false);
+                break;
+            }
+            case Slope_48:
+            {
+                *leftLowCut.template get<0>().coefficients = *cutCoefficients[0];
+                leftLowCut.template setBypassed<0>(false);
+                *leftLowCut.template get<1>().coefficients = *cutCoefficients[1];
+                leftLowCut.template setBypassed<1>(false);
+                *leftLowCut.template get<2>().coefficients = *cutCoefficients[2];
+                leftLowCut.template setBypassed<2>(false);
+                *leftLowCut.template get<3>().coefficients = *cutCoefficients[3];
+                leftLowCut.template setBypassed<3>(false);
+                break;
+            }
+            }
+        }
 };

@@ -31,7 +31,7 @@
       </OUTPUTS>
     </LAYOUT>
   </FILTER>
-  <FILTER uid="3" x="0.5" y="0.9">
+  <FILTER uid="3" x="0.6051282051282051" y="0.8269662921348314">
     <PLUGIN name="Audio Output" descriptiveName="" format="Internal" category="I/O devices"
             manufacturer="JUCE" version="1.0" file="" uniqueId="724248cb"
             isInstrument="0" fileTime="0" infoUpdateTime="0" numInputs="2"
@@ -61,27 +61,11 @@
       </OUTPUTS>
     </LAYOUT>
   </FILTER>
-  <FILTER uid="5" x="0.6068702290076335" y="0.4279379157427938" uiLastX_Normal="205"
-          uiLastY_Normal="90" uiopen_Normal="0">
-    <PLUGIN name="vstPlayer" format="VST3" category="Instrument|Synth" manufacturer="yourcompany"
-            version="2.3.4" file="F:\UWE\PORTFOLIO\Mirax Labs Audio Player for Host\vstPlayer.vst3"
-            uniqueId="8fdefd46" isInstrument="1" fileTime="17ad9dfbe48" infoUpdateTime="183c288bc7e"
-            numInputs="0" numOutputs="0" isShell="0" uid="ee63cfc"/>
-    <STATE>744.VMjLg7s....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOVMEUy.Ea0cVZtMEcgQWY9vSRC8Vav8lak4Fc9PyMz3hUMczXWEjKt3hYt3hKt.kKt3hKt3BS5gEcyQjKtPjY1YTR5AkaA4hKtfjYikWTGIlKHYmKD4hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKA4FZUMTRSgzZC4hKtXWdOMCLFElYXcUV30zUZUGMV8DZDk1R1gjPHsFMwfUcQYkVzMlUOgFUEUkQvHjSncSZOYlcCE1YMczXlQ0UZc0ZFkkdmY0SnY1PLYGRBgDLqYjTqsVLY4VTW8DZTMDS1gjPHY2cVgEM2YkV4EkLSQGLogzcHIDR3UkQhsVQFMFNHIDSn4BZiU2cVM1bUY0SnQTZKYGRBgjcEY0X4UkQYgCRBwDZyLzS1cmUXQycVoUdQ01S2fkUZIWUFgDcEYUXqASZHgzaCcEQUsFThEzPNYFQDElcmYEVlwTQisVPGI1YAI0RlIVQZsFMFgzUUYDRWUEahsVPnEEdUYUVlYFZYoGMBgzTqEiX5UjQHEzXWg0ayHUX10TZHU2LC8TctbTXms1Qg8VSGMVN1k2RxUTLhoGMC4hKt3hKt3hKt3hKlIUUMQUTPkzUZESQFM1ZQQEV5UjQtDDQlAEMAcEV40zQtDDQ14hK5EjKt3hKt3hKt3hRUACTEEzZh8VVWgkdUYTTmE0UXwyKIMzasA2atUlaz4COuX0TTMCTrU2Yo41TzEFck4C.</STATE>
-    <LAYOUT>
-      <INPUTS>
-        <BUS index="0" layout="L R"/>
-      </INPUTS>
-      <OUTPUTS>
-        <BUS index="0" layout="L R"/>
-      </OUTPUTS>
-    </LAYOUT>
-  </FILTER>
   <FILTER uid="11" x="0.5903307888040712" y="0.6031042128603105" uiLastX_Normal="426"
           uiLastY_Normal="376" uiopen_Normal="0">
     <PLUGIN name="SimpleEQ" format="VST3" category="Fx" manufacturer="yourcompany"
             version="1.0.0" file="F:\UWE\PORTFOLIO\SimpleEQ\SimpleEQ\SimpleEQ\Builds\VisualStudio2019\x64\Debug\VST3\SimpleEQ.vst3"
-            uniqueId="fe66db24" isInstrument="0" fileTime="183c282ee60" infoUpdateTime="183c288bc7e"
+            uniqueId="fe66db24" isInstrument="0" fileTime="183cbcb7dc7" infoUpdateTime="183cbcb9f17"
             numInputs="2" numOutputs="2" isShell="0" uid="e95813ec"/>
     <STATE>191.VMjLgXK....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOVMEUy.Ea0cVZtMEcgQWY9vSRC8Vav8lak4Fc9XCLt3hKt3hKt3hKt3hYRUUSTEETIckVwTjQisVTTgkdEYjKAQjYPQSPWgUdMcjKAQjct3hdA4hKt3hKt3hKtnTUv.UQAslXuk0UXoWUFE0YQcEV77RRC8Vav8lak4Fc9vyKVMEUy.Ea0cVZtMEcgQWY9..</STATE>
     <LAYOUT>
@@ -93,8 +77,23 @@
       </OUTPUTS>
     </LAYOUT>
   </FILTER>
-  <CONNECTION srcFilter="5" srcChannel="0" dstFilter="11" dstChannel="0"/>
-  <CONNECTION srcFilter="5" srcChannel="1" dstFilter="11" dstChannel="1"/>
+  <FILTER uid="12" x="0.5897435897435898" y="0.3213483146067416">
+    <PLUGIN name="vstPlayer" format="VST3" category="Instrument|Synth" manufacturer="yourcompany"
+            version="2.3.4" file="F:\UWE\PORTFOLIO\Audio File Player\Mirax Labs Audio Player for Host\vstPlayer.vst3"
+            uniqueId="8fdefd46" isInstrument="1" fileTime="17ad9dfbe48" infoUpdateTime="183cbcb9f17"
+            numInputs="0" numOutputs="0" isShell="0" uid="ee63cfc"/>
+    <STATE>628.VMjLgrl....O+fWarAhckI2bo8la8HRLt.iHfTlai8FYo41Y8HRUTYTK3HxO9.BOVMEUy.Ea0cVZtMEcgQWY9vSRC8Vav8lak4Fc9LCN23hUMczXWEjKt3hYt3hKt.kKt3hKt3BS5gEcyQjKtPjcZYTR5AkaA4hKtfjYikWTGIlKHYmKD4hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKt3hKtvzbUMTRSgjSB4hKtXWdOMCLFElYXcUV30zUZUGMV8DZDk1R1gjPHsFMwfUcQYkVzMlUOgFUEUkQvHjSncSZOYlcCE1YMczXlQ0UZc0ZFkkdmY0SnY1PLYGRBgDLqYjTqsVLY4VTW8DZTMDS1gjPHY2cVgEM2YkV4EkLSQGLogzcHIDR3UkQhsVQFMFNHIDSn4BZiU2cVM1bUY0SnQTZKYGRBgjcEY0X4UkQYgCRRwDZyLzS1cmUXQycVoUdQIyR4XWdKIWQwHldzLjKt3hKt3hKt3hKtXlTU0DUQAURWoULEYzXqEEUXoWQF4RPDYFTzDzUXkWSG4RPDYmKtnWPt3hKt3hKt3hKJUELPUTPqI1aYcEV5UkQQcVTWgEOujzPu0Fbu4VYtQmO77hUSQ0LPwVcmklaSQWXzUlO..</STATE>
+    <LAYOUT>
+      <INPUTS>
+        <BUS index="0" layout="L R"/>
+      </INPUTS>
+      <OUTPUTS>
+        <BUS index="0" layout="L R"/>
+      </OUTPUTS>
+    </LAYOUT>
+  </FILTER>
   <CONNECTION srcFilter="11" srcChannel="0" dstFilter="3" dstChannel="0"/>
   <CONNECTION srcFilter="11" srcChannel="1" dstFilter="3" dstChannel="1"/>
+  <CONNECTION srcFilter="12" srcChannel="0" dstFilter="11" dstChannel="0"/>
+  <CONNECTION srcFilter="12" srcChannel="1" dstFilter="11" dstChannel="1"/>
 </FILTERGRAPH>

@@ -47,11 +47,36 @@ SimpleEQAudioProcessorEditor::~SimpleEQAudioProcessorEditor()
 void SimpleEQAudioProcessorEditor::paint (juce::Graphics& g)
 {
     // (Our component is opaque, so we must completely fill the background with a solid colour)
-    g.fillAll (getLookAndFeel().findColour (juce::ResizableWindow::backgroundColourId));
+    g.fillAll (juce::Colours::black);
 
-    g.setColour (juce::Colours::white);
-    g.setFont (15.0f);
-    g.drawFittedText ("Hello World!", getLocalBounds(), juce::Justification::centred, 1);
+    auto bounds = getLocalBounds();
+    auto responseArea = bounds.removeFromTop(bounds.getHeight() * 0.33);
+  
+    auto w = responseArea.getWidth();
+
+    //Individual chain Elements:
+    auto& lowcut = monoChain.get < ChainPositions::LowCut>();
+    auto& peak = monoChain.get < ChainPositions::Peak>();
+    auto& highcut = monoChain.get < ChainPositions::HighCut>();
+
+    auto sampleRate = audioProcessor.getSampleRate(); //to use that function I need to know the sampleRate to get magnitude for frequency function
+
+    std::vector<double> mags; //I store all those magnitudes which return form that function as 'doubles'
+    //We are computing one magnitude per pixel so let's pre-allocate the space that we need:
+    mags.resize(w);
+    //We need to iterate through each pixel and compute the magnitude at that frequency.
+    //Magnitude is expressed as gain units an these ar multiplicative, unlike decibels which are additive
+    for (int i = 0; i, w; i++)
+    {
+        double mag = 1.f;
+        auto freq = mapToLog10(double(i) / double(w), 20.0, 20000.0); //We need to call the magnitude function for a particular pixel, map for pixel space to frequency space. This function do that 
+
+        if (!monoChain.isBypassed<ChainPositions::Peak>()) //If the band is not bypassed  
+            mag *= peak.coefficients->getMagnitudeForFrequency(freq, sampleRate);
+
+        if (!lowcut.isBypassed<0>())
+            mag *= lowcut.get<0>().coefficients->getMagnitudeForFrequency(freq, sampleRate);
+    }
 }
 
 void SimpleEQAudioProcessorEditor::resized()

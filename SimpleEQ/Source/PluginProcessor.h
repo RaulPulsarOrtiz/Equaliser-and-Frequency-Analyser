@@ -28,6 +28,16 @@ struct ChainSettings //Extract our parameters from the AudioProcesorValueTreeSta
 
 ChainSettings getChainSettings(juce::AudioProcessorValueTreeState& apvts);
 
+using Filter = juce::dsp::IIR::Filter<float>;  // 12dB per octave
+using CutFilter = juce::dsp::ProcessorChain<Filter, Filter, Filter, Filter>;
+using MonoChain = juce::dsp::ProcessorChain<CutFilter, Filter, CutFilter>; // Mono signal path.  Processor Chain needs a  processor context to be pass to it, in order to run the audio through the links in the Chain.
+enum ChainPositions
+{
+    LowCut,
+    Peak,
+    HighCut
+};
+
 //==============================================================================
 /**
 */
@@ -78,21 +88,13 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SimpleEQAudioProcessor)
 
         //Declaration of the Filters:
-        using Filter = juce::dsp::IIR::Filter<float>;  // 12dB per octave
-        using CutFilter = juce::dsp::ProcessorChain<Filter, Filter, Filter, Filter>; 
-        using MonoChain = juce::dsp::ProcessorChain<CutFilter, Filter, CutFilter>; // Mono signal path.  Processor Chain needs a  processor context to be pass to it, in order to run the audio through the links in the Chain.
         MonoChain leftChain, rightChain;
-
-        enum ChainPositions
-        {
-            LowCut,
-            Peak,
-            HighCut
-        };
-
+              
         void updatePeakFilter(const ChainSettings& chainSettings);
         using Coefficients = Filter::CoefficientsPtr;
         static void updateCoefficients(Coefficients& old, const Coefficients& replacements);
+
+        
 
       // To avoid all the duplication in the switch case . We can use this:
         template<int Index, typename ChainType, typename CoefficientType>
@@ -106,7 +108,6 @@ private:
         void updateCutFilter(ChainType& leftLowCut, const CoefficientType& cutCoefficients, const Slope& lowCutSlope)
                                                              
         {
-
             leftLowCut.template setBypassed<0>(true);
             leftLowCut.template setBypassed<1>(true);
             leftLowCut.template setBypassed<2>(true);

@@ -55,6 +55,7 @@ private:
 
     std::vector<juce::Component*> getComps(); //To have all the slider in a vector because I want to have done the same all the time to them (like makethemVisible)
 
+    MonoChain monoChain; //Gives to Editor his own Monochain
     //The function to connect the slider to the audio parameters is called attachment in hte apvts class, but the name is so long so I created an alias for that function:
   
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SimpleEQAudioProcessorEditor)

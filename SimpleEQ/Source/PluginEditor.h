@@ -39,9 +39,22 @@ private:
     SimpleEQAudioProcessor& audioProcessor;
 
     CustomRotarySlider peakFreakSlider, peakGainSlider, peakQualitySlider, lowCutFreqSlider, highCutFreqSlider,
-                       lowCutSlope, highCutSlope;
+                       lowCutSlopeSlider, highCutSlopeSlider;
+
+   using APVTS = juce::AudioProcessorValueTreeState;
+   using Attachment = APVTS::SliderAttachment;
+   Attachment peakFreakSliderAttachment, peakGainSliderAttachment, peakQualitySliderAttachment, lowCutFreqSliderAttachment, highCutFreqSliderAttachment, lowCutSlopeSliderAttachment, highCutSlopeSliderAttachment;
+   //juce::AupeakGainSliderAttachment;dioProcessorValueTreeState::SliderAttachment peakFreakSliderAttachment;
+   //juce::AupeakQualitySliderAttachment;dioProcessorValueTreeState::SliderAttachment peakGainSliderAttachment;
+   //juce::Au lowCutFreqSliderAttachment;dioProcessorValueTreeState::SliderAttachment peakQualitySliderAttachment;
+   //juce::Au highCutFreqSliderAttachment;dioProcessorValueTreeState::SliderAttachment  lowCutFreqSliderAttachment;
+    //juce::AudioProcessorValueTreeState::SliderAttachment  highCutFreqSliderAttachment;
+    //    juce::AudioProcessorValueTreeState::SliderAttachment  lowCutSlopeSliderAttachment;
+    //        juce::AudioProcessorValueTreeState::SliderAttachment   highCutSlopeSliderAttachment;
 
     std::vector<juce::Component*> getComps(); //To have all the slider in a vector because I want to have done the same all the time to them (like makethemVisible)
 
+    //The function to connect the slider to the audio parameters is called attachment in hte apvts class, but the name is so long so I created an alias for that function:
+  
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SimpleEQAudioProcessorEditor)
 };

@@ -71,7 +71,7 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
     static AudioProcessorValueTreeState::ParameterLayout createParameterLayout(); //needs to be public so the GUI can attach all the knobs and combo boxes etc
-    AudioProcessorValueTreeState apvts{ *this, nullptr, "Parameters", createParameterLayout() };
+    AudioProcessorValueTreeState apvts { *this, nullptr, "Parameters", createParameterLayout() };
 
 private:
     //==============================================================================

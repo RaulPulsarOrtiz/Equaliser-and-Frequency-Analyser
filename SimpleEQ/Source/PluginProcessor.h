@@ -33,6 +33,59 @@ enum ChainPositions
 using Coefficients = Filter::CoefficientsPtr;
 void updateCoefficients(Coefficients& old, const Coefficients& replacements);
 Coefficients makePeakFilter(const ChainSettings& chainSettings, double sampleRate);
+// To avoid all the duplication in the switch case . We can use this:
+template<int Index, typename ChainType, typename CoefficientType>
+void update(ChainType& chain, const CoefficientType& coefficients)
+{
+    updateCoefficients(chain.template get<Index>().coefficients, coefficients[Index]);
+    chain.template setBypassed<Index>(false);
+}
+template<typename ChainType, typename CoefficientType>
+void updateCutFilter(ChainType& leftLowCut, const CoefficientType& cutCoefficients, const Slope& lowCutSlope)
+
+{
+    leftLowCut.template setBypassed<0>(true);
+    leftLowCut.template setBypassed<1>(true);
+    leftLowCut.template setBypassed<2>(true);
+    leftLowCut.template setBypassed<3>(true);
+    switch (lowCutSlope)  //fallthrough ib the cases because I dont say break
+    {
+    case Slope_48:
+    {
+        update<3>(leftLowCut, cutCoefficients);
+        //*leftLowCut.template get<3>().coefficients = *cutCoefficients[3];
+        // leftLowCut.template setBypassed<3>(false);
+    }
+
+    case Slope_36:
+    {
+        update<2>(leftLowCut, cutCoefficients);
+    }
+
+    case Slope_24:
+    {
+        update<1>(leftLowCut, cutCoefficients);
+    }
+
+    case Slope_12:
+    {
+        update<0>(leftLowCut, cutCoefficients);
+    }
+    }
+}
+inline auto makeLowCutFilter(const ChainSettings& chainSettings, double sampleRate)
+{
+    return juce::dsp::FilterDesign<float>::designIIRHighpassHighOrderButterworthMethod(chainSettings.lowCutFreq,
+                                                                                         sampleRate,
+                                                                                         2 * (chainSettings.lowCutSlope + 1));
+}
+
+inline auto makeHighCutFilter (const ChainSettings& chainSettings, double sampleRate)
+{
+return juce::dsp::FilterDesign<float>::designIIRLowpassHighOrderButterworthMethod(chainSettings.highCutFreq,
+                                                                                  sampleRate,
+                                                                                  2 * (chainSettings.highCutSlope + 1));
+}
 //==============================================================================
 /**
 */
@@ -79,44 +132,7 @@ private:
     
     void updatePeakFilter(const ChainSettings& chainSettings);
    
-    // To avoid all the duplication in the switch case . We can use this:
-    template<int Index, typename ChainType, typename CoefficientType>
-    void update(ChainType& chain, const CoefficientType& coefficients)
-    {
-        updateCoefficients(chain.template get<Index>().coefficients, coefficients[Index]);
-        chain.template setBypassed<Index>(false);
-    }
-    template<typename ChainType, typename CoefficientType>
-    void updateCutFilter(ChainType& leftLowCut, const CoefficientType& cutCoefficients, const Slope& lowCutSlope)
-
-    {
-        leftLowCut.template setBypassed<0>(true);
-        leftLowCut.template setBypassed<1>(true);
-        leftLowCut.template setBypassed<2>(true);
-        leftLowCut.template setBypassed<3>(true);
-        switch (lowCutSlope)  //fallthrough ib the cases because I dont say break
-        {
-        case Slope_48:
-        {
-            update<3>(leftLowCut, cutCoefficients);
-            //*leftLowCut.template get<3>().coefficients = *cutCoefficients[3];
-            // leftLowCut.template setBypassed<3>(false);
-        }
-
-        case Slope_36:
-        {
-            update<2>(leftLowCut, cutCoefficients);
-        }
-
-        case Slope_24:
-        {
-            update<1>(leftLowCut, cutCoefficients);
-        }
-
-        case Slope_12:
-        {
-            update<0>(leftLowCut, cutCoefficients);
-        }
+    
         // case Slope_12:
         // {
         //     *leftLowCut.template get<0>().coefficients = *cutCoefficients[0];
@@ -154,8 +170,7 @@ private:
         //     break;
         // }
 
-        }
-    }
+ 
     void updateLowCutFilters(const ChainSettings& chainSettings);
     void updateHighCutFilters(const ChainSettings& chainSettings);
     void updateFilters();

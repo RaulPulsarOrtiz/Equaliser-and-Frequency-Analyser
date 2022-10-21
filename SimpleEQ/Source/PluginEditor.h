@@ -6,12 +6,35 @@
 #pragma once
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
-struct CustomRotarySlider : juce::Slider   //To dont type this base class initialisation for every slider, this class do this in the constructor. So I can use this for every slider in the GUI
+
+struct LookAndFeels : juce::LookAndFeel_V4 
 {
-    CustomRotarySlider() : juce::Slider(juce::Slider::SliderStyle::RotaryHorizontalVerticalDrag,
-        juce::Slider::TextEntryBoxPosition::NoTextBox)
+    void drawRotarySlider(Graphics&, int x, int y, int width, int height,
+        float sliderPosProportional, float rotaryStartAngle,
+        float rotaryEndAngle, Slider&) override;
+};
+
+struct RotarySliderWithLabels : juce::Slider   //To dont type this base class initialisation for every slider, this class do this in the constructor. So I can use this for every slider in the GUI
+{
+    RotarySliderWithLabels(juce::RangedAudioParameter& rap, const juce::String& unitSuffix) : juce::Slider(juce::Slider::SliderStyle::RotaryHorizontalVerticalDrag,
+        juce::Slider::TextEntryBoxPosition::NoTextBox), 
+        param(&rap), suffix(unitSuffix)
     {
+        setLookAndFeel(&lnf);
     }
+
+    ~RotarySliderWithLabels()
+    {
+        setLookAndFeel(nullptr);
+    }
+    void paint(juce::Graphics& g) override;
+    juce::Rectangle<int> getSliderBounds() const;
+    int getTextHeight() const { return 14; }
+    juce::String getDisplayString() const;
+
+private: juce::RangedAudioParameter* param;
+       juce::String suffix;
+       LookAndFeels lnf;
 };
 
 struct ResponseCurveComponent: juce::Component,
@@ -53,7 +76,7 @@ private:
     //In this timer callback we are going to query and atomic flag to decide if the chain needs updating and our component needs to be repainted
    // juce::Atomic<bool> parametersChanged{ false };
 
-    CustomRotarySlider peakFreakSlider, peakGainSlider, peakQualitySlider, lowCutFreqSlider, highCutFreqSlider,
+    RotarySliderWithLabels peakFreakSlider, peakGainSlider, peakQualitySlider, lowCutFreqSlider, highCutFreqSlider,
         lowCutSlopeSlider, highCutSlopeSlider;
 
     ResponseCurveComponent responseCurveComponent;

@@ -6,6 +6,61 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+void LookAndFeels::drawRotarySlider(Graphics& g, int x, int y, int width, int height,
+                                    float sliderPosProportional, float rotaryStartAngle,
+                                    float rotaryEndAngle, Slider& slider)
+{
+    auto bounds = Rectangle<float>(x, y, width, height);
+
+    g.setColour(Colour(97u, 18u, 167u));
+    g.fillEllipse(bounds);
+
+    g.setColour(Colour(255u, 154u, 1u));
+    g.drawEllipse(bounds, 1.f);
+
+    auto center = bounds.getCentre();
+
+    Path p;
+
+    Rectangle<float> r;
+    r.setLeft(center.getX() - 2);
+    r.setRight(center.getX() + 2);
+    r.setTop(bounds.getY());
+    r.setBottom(center.getY());
+
+    p.addRectangle(r);
+
+    //jassert(rotaryStartAngle < rotaryEndAngle);
+
+    auto sliderAngRad = jmap(sliderPosProportional, 0.f, 1.f, rotaryStartAngle, rotaryEndAngle);
+
+    p.applyTransform(AffineTransform().rotated(sliderAngRad, center.getX(), center.getY()));
+
+    g.fillPath(p);
+}
+
+//==============================================================================
+void RotarySliderWithLabels::paint(juce::Graphics& g)
+{
+    auto startAng = degreesToRadians(-45.f - 90.f);
+    auto endAng = degreesToRadians(45.f + 90.f);
+
+    auto range = getRange();
+
+    auto sliderBounds = getSliderBounds();
+
+    getLookAndFeel().drawRotarySlider(g, sliderBounds.getX(), sliderBounds.getY(), sliderBounds.getWidth(), sliderBounds.getHeight(), 
+                                      jmap(getValue(), range.getStart(), range.getEnd(), 0.0, 1.0), //Here is where we map our sliders. We turn our slider values into normalised values
+                                      startAng, endAng, *this);
+}
+
+juce::Rectangle<int> RotarySliderWithLabels::getSliderBounds() const
+{
+    return getLocalBounds();
+}
+
+//==============================================================================
+
 ResponseCurveComponent::ResponseCurveComponent(SimpleEQAudioProcessor& p) : audioProcessor(p)
 {
 
@@ -132,7 +187,14 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
 
 //==============================================================================
 SimpleEQAudioProcessorEditor::SimpleEQAudioProcessorEditor(SimpleEQAudioProcessor& p)
-    : AudioProcessorEditor(&p), audioProcessor(p), responseCurveComponent(audioProcessor)
+    : AudioProcessorEditor(&p), audioProcessor(p), peakFreakSlider(*audioProcessor.apvts.getParameter("PeakFreq"), "Hz"),
+    peakGainSlider(*audioProcessor.apvts.getParameter("PeakGain"), "dB"),
+    peakQualitySlider(*audioProcessor.apvts.getParameter("PeakQuality"), ""),
+    lowCutFreqSlider(*audioProcessor.apvts.getParameter("LowCut Freq"), "Hz"),
+    highCutFreqSlider(*audioProcessor.apvts.getParameter("HighCut Freak"), "Hz"),
+    lowCutSlopeSlider(*audioProcessor.apvts.getParameter("LowCut Slope"), "dB/Oct"),
+    highCutSlopeSlider(*audioProcessor.apvts.getParameter("HighCut Slope"), "dB?Oct"),
+    responseCurveComponent(audioProcessor)
    // peakFreakSliderAttachment(audioProcessor.apvts, "Peak Freq", peakFreakSlider),
    // peakGainSliderAttachment(audioProcessor.apvts, "Peak Gain", peakGainSlider),
    // peakQualitySliderAttachment(audioProcessor.apvts, "Peak Quality", peakQualitySlider),

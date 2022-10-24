@@ -319,7 +319,7 @@ void SimpleEQAudioProcessor::setStateInformation(const void* data, int sizeInByt
     // You should use this method to restore your parameters from this memory block,
     // whose contents will have been created by the getStateInformation() call.
     auto tree = juce::ValueTree::readFromData(data, sizeInBytes); //Read that memory with the data of the parameters saved
-    if (tree.isValid()) //Check if the tree that was pulled from memory is valid befre we copy it to out plugins state
+    if (tree.isValid()) //Check if the tree that was pulled from memory is valid before we copy it to out plugins state
     {
         apvts.replaceState(tree);
         updateFilters();

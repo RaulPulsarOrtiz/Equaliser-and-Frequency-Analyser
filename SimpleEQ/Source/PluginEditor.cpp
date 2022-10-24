@@ -18,25 +18,43 @@ void LookAndFeels::drawRotarySlider(Graphics& g, int x, int y, int width, int he
     g.setColour(Colour(255u, 154u, 1u));
     g.drawEllipse(bounds, 1.f);
 
-    auto center = bounds.getCentre();
+    if (auto* rswl = dynamic_cast<RotarySliderWithLabels*>(&slider))
+    {
+        auto center = bounds.getCentre();
 
-    Path p;
+        Path p;
 
-    Rectangle<float> r;
-    r.setLeft(center.getX() - 2);
-    r.setRight(center.getX() + 2);
-    r.setTop(bounds.getY());
-    r.setBottom(center.getY());
+        Rectangle<float> r;
+        r.setLeft(center.getX() - 2);
+        r.setRight(center.getX() + 2);
+        r.setTop(bounds.getY());
+        r.setBottom(center.getY() - rswl->getTextHeight() * 1.5);
 
-    p.addRectangle(r);
+        p.addRoundedRectangle(r, 2.f);
+        p.addRectangle(r);
 
-    //jassert(rotaryStartAngle < rotaryEndAngle);
+        jassert(rotaryStartAngle < rotaryEndAngle);
 
-    auto sliderAngRad = jmap(sliderPosProportional, 0.f, 1.f, rotaryStartAngle, rotaryEndAngle);
+        auto sliderAngRad = jmap(sliderPosProportional, 0.f, 1.f, rotaryStartAngle, rotaryEndAngle);
 
-    p.applyTransform(AffineTransform().rotated(sliderAngRad, center.getX(), center.getY()));
+        p.applyTransform(AffineTransform().rotated(sliderAngRad, center.getX(), center.getY()));
 
-    g.fillPath(p);
+        g.fillPath(p);
+
+        g.setFont(rswl->getTextHeight()); 
+        auto text = rswl->getDisplayString();
+        auto strWidth = g.getCurrentFont().getStringWidth(text);
+
+        r.setSize(strWidth + 4, rswl->getTextHeight() + 2);
+        r.setCentre(center);
+
+        g.setColour(Colours::black);
+        g.fillRect(r);
+
+        g.setColour(Colours::white);
+        g.drawFittedText(text, r.toNearestInt(), juce::Justification::centred, 1);
+    }
+
 }
 
 //==============================================================================
@@ -49,6 +67,11 @@ void RotarySliderWithLabels::paint(juce::Graphics& g)
 
     auto sliderBounds = getSliderBounds();
 
+    g.setColour(Colours::red);
+    g.drawRect(getLocalBounds());
+    g.setColour(Colours::yellow);
+    g.drawRect(sliderBounds);
+
     getLookAndFeel().drawRotarySlider(g, sliderBounds.getX(), sliderBounds.getY(), sliderBounds.getWidth(), sliderBounds.getHeight(), 
                                       jmap(getValue(), range.getStart(), range.getEnd(), 0.0, 1.0), //Here is where we map our sliders. We turn our slider values into normalised values
                                       startAng, endAng, *this);
@@ -56,9 +79,23 @@ void RotarySliderWithLabels::paint(juce::Graphics& g)
 
 juce::Rectangle<int> RotarySliderWithLabels::getSliderBounds() const
 {
-    return getLocalBounds();
+
+    auto bounds = getLocalBounds();
+    auto size = juce::jmin(bounds.getWidth(), bounds.getHeight());
+    size -= getTextHeight() * 2;
+    juce::Rectangle<int> r;
+    r.setSize(size, size);
+    r.setCentre(bounds.getCentreX(), 0);
+    r.setY(2);
+
+    return r;
+
 }
 
+juce::String RotarySliderWithLabels::getDisplayString() const
+{
+    return juce::String(getValue());
+}
 //==============================================================================
 
 ResponseCurveComponent::ResponseCurveComponent(SimpleEQAudioProcessor& p) : audioProcessor(p)
@@ -126,10 +163,10 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
     mags.resize(w);
 
     //We need to iterate through each pixel and compute the magnitude at that frequency.
-    //Magnitude is expressed as gain units an these ar multiplicative, unlike decibels which are additive
+    //Magnitude is expressed as gain units an these ar multiplicative, unlike decibels which are additive. thats why I need a starting gain of one
     for (int i = 0; i < w; i++)
     {
-        double mag = 1.f;
+        double mag = 1.f; //Starting gain of One 
         auto freq = mapToLog10(double(i) / double(w), 20.0, 20000.0); //We need to call the magnitude function for a particular pixel, map for pixel space to frequency space. This function do that 
 
         if (!monoChain.isBypassed<ChainPositions::Peak>()) //If the band is not bypassed  
@@ -156,7 +193,7 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
         //Convert this magnitude into decibels and store it:
         mags[i] = Decibels::gainToDecibels(mag);
 
-        //Now we convert this vector of magnitudes into a path and the draw it:
+        //Now we convert this vector of magnitudes into a path and then  draw it:
         Path responseCurve;
 
         //Map our decibel value to the response area:

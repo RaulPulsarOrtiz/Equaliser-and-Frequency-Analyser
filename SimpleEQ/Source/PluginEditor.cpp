@@ -38,7 +38,7 @@ void LookAndFeels::drawRotarySlider(Graphics& g, int x, int y, int width, int he
         auto sliderAngRad = jmap(sliderPosProportional, 0.f, 1.f, rotaryStartAngle, rotaryEndAngle);
 
         p.applyTransform(AffineTransform().rotated(sliderAngRad, center.getX(), center.getY()));
-
+       
         g.fillPath(p);
 
         g.setFont(rswl->getTextHeight()); 
@@ -67,14 +67,40 @@ void RotarySliderWithLabels::paint(juce::Graphics& g)
 
     auto sliderBounds = getSliderBounds();
 
-    g.setColour(Colours::red);
-    g.drawRect(getLocalBounds());
-    g.setColour(Colours::yellow);
-    g.drawRect(sliderBounds);
+    //g.setColour(Colours::red);
+    //g.drawRect(getLocalBounds());
+    //g.setColour(Colours::yellow);
+    //g.drawRect(sliderBounds);
 
     getLookAndFeel().drawRotarySlider(g, sliderBounds.getX(), sliderBounds.getY(), sliderBounds.getWidth(), sliderBounds.getHeight(), 
                                       jmap(getValue(), range.getStart(), range.getEnd(), 0.0, 1.0), //Here is where we map our sliders. We turn our slider values into normalised values
                                       startAng, endAng, *this);
+
+    auto center = sliderBounds.toFloat().getCentre();
+    auto radius = sliderBounds.getWidth() * 0.5f;
+
+    g.setColour(Colour(0u, 172u, 1u));
+    g.setFont(getTextHeight());
+
+    auto numChoices = labels.size();
+    for (int i = 0; i < numChoices; i++)
+    {
+        auto pos = labels[i].Pos;
+        jassert(0.f <= pos);
+        jassert(pos <= 1.f);
+
+        auto ang = jmap(pos, 0.f, 1.f, startAng, endAng);
+               
+        auto c = center.getPointOnCircumference(radius + getTextHeight() * 0.5f + 1, ang);
+                 //Get centre of the circle                 //Go a little bit pass the circle
+        Rectangle<float> r;
+        auto str = labels[i].label;
+        r.setSize(g.getCurrentFont().getStringWidth(str), getTextHeight());
+        r.setCentre(c);
+        r.setY(r.getY() + getTextHeight()); //shift it down from the cicle
+
+        g.drawFittedText(str, r.toNearestInt(), juce::Justification::centred, 1);
+    }
 }
 
 juce::Rectangle<int> RotarySliderWithLabels::getSliderBounds() const
@@ -94,7 +120,41 @@ juce::Rectangle<int> RotarySliderWithLabels::getSliderBounds() const
 
 juce::String RotarySliderWithLabels::getDisplayString() const
 {
-    return juce::String(getValue());
+    //return juce::String(getValue());
+    if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(param))
+        return choiceParam->getCurrentChoiceName();
+
+    juce::String str;
+    bool addK = false;
+
+    if (auto* floatParam = dynamic_cast<juce::AudioParameterFloat*>(param))
+    {
+        float val = getValue();
+
+        if (val > 999.f)
+        {
+            val /= 1000.f; //1001 / 100 = 1.001
+                addK = true;
+        }
+
+        str = juce::String(val, (addK ? 2 : 0));
+    }
+    //else
+    //{
+    //    jassertfalse; //this shouldn't happen!
+    //}
+
+    //Quality has no units. so
+    if (suffix.isNotEmpty())
+    {
+        str << " ";
+        if (addK)
+            str << "k";
+
+        str << suffix;
+    }
+
+    return str;
 }
 //==============================================================================
 
@@ -224,13 +284,14 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
 
 //==============================================================================
 SimpleEQAudioProcessorEditor::SimpleEQAudioProcessorEditor(SimpleEQAudioProcessor& p)
-    : AudioProcessorEditor(&p), audioProcessor(p), peakFreakSlider(*audioProcessor.apvts.getParameter("PeakFreq"), "Hz"),
-    peakGainSlider(*audioProcessor.apvts.getParameter("PeakGain"), "dB"),
-    peakQualitySlider(*audioProcessor.apvts.getParameter("PeakQuality"), ""),
+    : AudioProcessorEditor(&p), audioProcessor(p), 
+    peakFreqSlider(*audioProcessor.apvts.getParameter("Peak Freq"), "Hz"),
+    peakGainSlider(*audioProcessor.apvts.getParameter("Peak Gain"), "dB"),
+    peakQualitySlider(*audioProcessor.apvts.getParameter("Peak Quality"), ""),
     lowCutFreqSlider(*audioProcessor.apvts.getParameter("LowCut Freq"), "Hz"),
-    highCutFreqSlider(*audioProcessor.apvts.getParameter("HighCut Freak"), "Hz"),
+    highCutFreqSlider(*audioProcessor.apvts.getParameter("HighCut Freq"), "Hz"),
     lowCutSlopeSlider(*audioProcessor.apvts.getParameter("LowCut Slope"), "dB/Oct"),
-    highCutSlopeSlider(*audioProcessor.apvts.getParameter("HighCut Slope"), "dB?Oct"),
+    highCutSlopeSlider(*audioProcessor.apvts.getParameter("HighCut Slope"), "dB/Oct"),
     responseCurveComponent(audioProcessor)
    // peakFreakSliderAttachment(audioProcessor.apvts, "Peak Freq", peakFreakSlider),
    // peakGainSliderAttachment(audioProcessor.apvts, "Peak Gain", peakGainSlider),
@@ -250,7 +311,7 @@ SimpleEQAudioProcessorEditor::SimpleEQAudioProcessorEditor(SimpleEQAudioProcesso
     {
         addAndMakeVisible(comp);
     }
-     peakFreakSliderAttachment = std::make_unique< juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "Peak Freq", peakFreakSlider);
+     peakFreqSliderAttachment = std::make_unique< juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "Peak Freq", peakFreqSlider);
      peakGainSliderAttachment = std::make_unique< juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "Peak Gain", peakGainSlider);
      peakQualitySliderAttachment = std::make_unique< juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "Peak Quality", peakQualitySlider);
      lowCutFreqSliderAttachment = std::make_unique< juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "LowCut Freq", lowCutFreqSlider);
@@ -258,6 +319,26 @@ SimpleEQAudioProcessorEditor::SimpleEQAudioProcessorEditor(SimpleEQAudioProcesso
      lowCutSlopeSliderAttachment = std::make_unique< juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "LowCut Slope", lowCutSlopeSlider);
      highCutSlopeSliderAttachment = std::make_unique< juce::AudioProcessorValueTreeState::SliderAttachment>(audioProcessor.apvts, "HighCut Slope", highCutSlopeSlider);
       
+     peakFreqSlider.labels.add({ 0.f, "20hz" });
+     peakFreqSlider.labels.add({ 1.f, "20KHz" });
+     
+     peakGainSlider.labels.add({ 0.f, "-24.f" });
+     peakGainSlider.labels.add({ 1.f, "+24.f" });
+
+     peakQualitySlider.labels.add({ 0.f, "0.1" });
+     peakQualitySlider.labels.add({ 1.f, "10.0" });
+
+     lowCutFreqSlider.labels.add({ 0.f, "20Hz" });
+     lowCutFreqSlider.labels.add({ 1.f, "20KHz" });
+         
+     highCutFreqSlider.labels.add({ 0.f, "20Hz" });
+     highCutFreqSlider.labels.add({ 1.f, "20KHz" });
+        
+     lowCutSlopeSlider.labels.add({ 0.f, "12" });
+     lowCutSlopeSlider.labels.add({ 1.f, "48" });
+         
+     highCutSlopeSlider.labels.add({ 0.f, "12" });
+     highCutSlopeSlider.labels.add({ 1.f, "48" });
 
     setSize(600, 400);
 }
@@ -285,7 +366,7 @@ void SimpleEQAudioProcessorEditor::resized()
     lowCutSlopeSlider.setBounds(lowCutArea);
     highCutFreqSlider.setBounds(highCutArea.removeFromTop(highCutArea.getHeight() * 0.5));
     highCutSlopeSlider.setBounds(highCutArea);
-    peakFreakSlider.setBounds(bounds.removeFromTop(bounds.getHeight() * 0.33));
+    peakFreqSlider.setBounds(bounds.removeFromTop(bounds.getHeight() * 0.33));
     peakGainSlider.setBounds(bounds.removeFromTop(bounds.getHeight() * 0.5));
     peakQualitySlider.setBounds(bounds);
 }
@@ -294,7 +375,7 @@ std::vector<juce::Component*> SimpleEQAudioProcessorEditor::getComps()
 {
     return
     {
-        &peakFreakSlider,
+        &peakFreqSlider,
         &peakGainSlider,
         &peakQualitySlider,
         &lowCutFreqSlider,

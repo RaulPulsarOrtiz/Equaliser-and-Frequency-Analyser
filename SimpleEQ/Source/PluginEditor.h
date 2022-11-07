@@ -27,6 +27,15 @@ struct RotarySliderWithLabels : juce::Slider   //To dont type this base class in
     {
         setLookAndFeel(nullptr);
     }
+
+    struct LabelPos
+    {
+        float Pos;         //Normalised value
+        juce::String label; //String that is going to be displayed
+    };
+
+    juce::Array<LabelPos> labels;
+
     void paint(juce::Graphics& g) override;
     juce::Rectangle<int> getSliderBounds() const;
     int getTextHeight() const { return 14; }
@@ -76,7 +85,7 @@ private:
     //In this timer callback we are going to query and atomic flag to decide if the chain needs updating and our component needs to be repainted
    // juce::Atomic<bool> parametersChanged{ false };
 
-    RotarySliderWithLabels peakFreakSlider, peakGainSlider, peakQualitySlider, lowCutFreqSlider, highCutFreqSlider,
+    RotarySliderWithLabels peakFreqSlider, peakGainSlider, peakQualitySlider, lowCutFreqSlider, highCutFreqSlider,
         lowCutSlopeSlider, highCutSlopeSlider;
 
     ResponseCurveComponent responseCurveComponent;
@@ -95,7 +104,7 @@ private:
     //Attachment needs to be below of the sliders(CustomRotarySlider)
   //  Attachment peakFreakSliderAttachment, peakGainSliderAttachment, peakQualitySliderAttachment, lowCutFreqSliderAttachment, highCutFreqSliderAttachment, lowCutSlopeSliderAttachment, highCutSlopeSliderAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> peakGainSliderAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> peakFreakSliderAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> peakFreqSliderAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> peakQualitySliderAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> lowCutFreqSliderAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> highCutFreqSliderAttachment;

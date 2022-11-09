@@ -166,6 +166,9 @@ ResponseCurveComponent::ResponseCurveComponent(SimpleEQAudioProcessor& p) : audi
     {
         param->addListener(this);
     }
+
+    updateChain(); //Loading the previous configuration I want see that already drawn in the curve. Thats why I use this here
+
     startTimerHz(60);
 }
 
@@ -187,27 +190,35 @@ void ResponseCurveComponent::timerCallback()
 {
     if (parametersChanged.compareAndSetBool(false, true))
     {
-        //update the monochain
-        auto chainSettings = getChainSettings(audioProcessor.apvts);
-        auto peakCoefficients = makePeakFilter(chainSettings, audioProcessor.getSampleRate());
-        //Now we can update our chain Coefficients:
-        updateCoefficients(monoChain.get<ChainPositions::Peak>().coefficients, peakCoefficients);
-
-        auto lowCutCoefficients = makeLowCutFilter(chainSettings, audioProcessor.getSampleRate());
-        auto highCutCoefficients = makeHighCutFilter(chainSettings, audioProcessor.getSampleRate());
-
-        updateCutFilter(monoChain.get<ChainPositions::LowCut>(), lowCutCoefficients, chainSettings.lowCutSlope);
-        updateCutFilter(monoChain.get<ChainPositions::HighCut>(), highCutCoefficients, chainSettings.highCutSlope);
+        updateChain();
         //signal a repaint
         repaint();
     }
 }
+
+void ResponseCurveComponent::updateChain() //Helper function to have the curve drawn the first time that the plugin is load. (Because previous configuration keeps on from the previous time)
+{
+    //update the monochain
+    auto chainSettings = getChainSettings(audioProcessor.apvts);
+    auto peakCoefficients = makePeakFilter(chainSettings, audioProcessor.getSampleRate());
+    //Now we can update our chain Coefficients:
+    updateCoefficients(monoChain.get<ChainPositions::Peak>().coefficients, peakCoefficients);
+
+    auto lowCutCoefficients = makeLowCutFilter(chainSettings, audioProcessor.getSampleRate());
+    auto highCutCoefficients = makeHighCutFilter(chainSettings, audioProcessor.getSampleRate());
+
+    updateCutFilter(monoChain.get<ChainPositions::LowCut>(), lowCutCoefficients, chainSettings.lowCutSlope);
+    updateCutFilter(monoChain.get<ChainPositions::HighCut>(), highCutCoefficients, chainSettings.highCutSlope);
+}
+
 void ResponseCurveComponent::paint(juce::Graphics& g)
 {
     // (Our component is opaque, so we must completely fill the background with a solid colour)
     g.fillAll(juce::Colours::black);
 
-    auto responseArea = getLocalBounds();
+    g.drawImage(background, getLocalBounds().toFloat());
+
+    auto responseArea = getAnalysisArea(); //getRenderArea(); //getLocalBounds();
    
     auto w = responseArea.getWidth();
 
@@ -274,12 +285,86 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
         }
 
         g.setColour(Colours::orange);
-        g.drawRoundedRectangle(responseArea.toFloat(), 4.f, 1.f);
+        g.drawRoundedRectangle(getRenderArea().toFloat(), 4.f, 1.f);
 
-        g.setColour(Colours::white);
+        g.setColour(Colours::red);
         g.strokePath(responseCurve, PathStrokeType(2.f));
 
     }
+}
+
+void ResponseCurveComponent::resized()
+{
+    background = Image(Image::PixelFormat::RGB, getWidth(), getHeight(), true);//Create a new background image.
+    Graphics g(background); // Then create a graphics context which draw into the backgorund image
+   
+    Array<float> freqs
+    {
+        20, 30, 40, 50, 100,
+        200, 300, 400, 500, 1000,
+        2000, 3000, 4000, 5000, 10000,
+        20000
+    };
+
+    auto renderArea = getAnalysisArea();
+    auto left = renderArea.getX();
+    auto right = renderArea.getRight();
+    auto top = renderArea.getY();
+    auto bottom = renderArea.getBottom();
+    auto width = renderArea.getWidth();
+
+    //g.setColour(Colours::dimgrey);
+    Array<float> xs;
+    for (auto f : freqs) //Loop through the freqs and draw a vertical line in each freq
+    {
+        auto normX = mapFromLog10(f, 20.f, 20000.f); //Convert the frequency value into normalised position
+        xs.add(left + width * normX); //Compute that to a window x position based on the left edge of the renderArea
+       // g.drawVerticalLine(getWidth() * normX, 0.f, getHeight());
+    }
+
+    g.setColour(Colours::dimgrey);
+    for (auto x : xs)
+    {
+        g.drawVerticalLine(x, top, bottom);
+    }
+
+    Array<float> gain
+    {
+        -24, -23, 0, 12, 24
+    };
+
+    for (auto gDb : gain)
+    {
+        auto y = jmap(gDb, -24.f, 24.f, float(bottom), float(top));
+       // g.drawHorizontalLine(y, 0, getWidth());
+        g.setColour(gDb == 0.f ? Colour(0u, 172u, 1u) : Colours::darkgrey); //Draw a green line in the center
+        g.drawHorizontalLine(y, left, right);
+    }
+
+    g.drawRect(getRenderArea());
+}
+
+juce::Rectangle<int> ResponseCurveComponent::getRenderArea() //Check how much rectangle I want to reduce to dont cover the -24 and +24 gain in the Response Area
+{
+    auto bounds = getLocalBounds();
+  //  bounds.reduce(15, //JUCE_LIVE_CONSTANT(5),
+  //                20); //JUCE_LIVE_CONSTANT(5));
+    bounds.removeFromTop(15);
+    bounds.removeFromBottom(2);
+    bounds.removeFromLeft(20);
+    bounds.removeFromRight(20);
+
+    return bounds;
+}
+
+juce::Rectangle<int> ResponseCurveComponent::getAnalysisArea()
+{
+    auto bounds = getRenderArea();
+    bounds.removeFromTop(4);
+    bounds.removeFromBottom(4);
+
+    return bounds;
+
 }
 
 //==============================================================================
@@ -360,6 +445,9 @@ void SimpleEQAudioProcessorEditor::resized()
     auto bounds = getLocalBounds();
     auto responseArea = bounds.removeFromTop(bounds.getHeight() * 0.33);
     responseCurveComponent.setBounds(responseArea);
+    
+    bounds.removeFromTop(5);
+
     auto lowCutArea = bounds.removeFromLeft(bounds.getWidth() * 0.33);
     auto highCutArea = bounds.removeFromRight(bounds.getWidth() * 0.5);
     lowCutFreqSlider.setBounds(lowCutArea.removeFromTop(lowCutArea.getHeight() * 0.5));

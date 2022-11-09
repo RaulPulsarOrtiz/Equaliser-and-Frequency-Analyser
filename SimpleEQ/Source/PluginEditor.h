@@ -56,12 +56,20 @@ struct ResponseCurveComponent: juce::Component,
     void timerCallback() override;
     void parameterGestureChanged(int parameterIndex, bool gestureIsStarting) override {};
     void paint(juce::Graphics& g) override;
+    void resized() override;
 
 private:
     SimpleEQAudioProcessor& audioProcessor;
     //In this timer callback we are going to query and atomic flag to decide if the chain needs updating and our component needs to be repainted
     juce::Atomic<bool> parametersChanged{ false };
     MonoChain monoChain;
+
+    void updateChain();
+
+    juce::Image background; //Resize() is a good place to do this because is called each time that component bounds is changed and is called before the first time that paint() is called
+
+    juce::Rectangle<int> getRenderArea();
+    juce::Rectangle<int> getAnalysisArea(); //Is going to be a little bit smaller than the RenderArea
 };
 
 

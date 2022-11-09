@@ -330,7 +330,7 @@ void ResponseCurveComponent::resized()
 
     Array<float> gain
     {
-        -24, -23, 0, 12, 24
+        -24, -12, 0, 12, 24
     };
 
     for (auto gDb : gain)
@@ -373,6 +373,29 @@ void ResponseCurveComponent::resized()
 
         g.drawFittedText(str, r, juce::Justification::centred, 1);
     }
+
+    for (auto gDb : gain)
+    {
+        auto y = jmap(gDb, -24.f, 24.f, float(bottom), float(top));
+
+        String str;
+        if (gDb > 0)
+            str << "+";
+        str << gDb;
+
+        auto textWidth = g.getCurrentFont().getStringWidth(str);
+        
+        Rectangle<int> r;
+        r.setSize(textWidth, fontHeight);
+        r.setX(getWidth() - textWidth);
+        r.setCentre(r.getCentreX(), y);
+
+        g.setColour(gDb == 0.f ? Colour(0u, 172u, 1u) : Colours::lightgrey); //Draw a green line in the center
+
+        g.drawFittedText(str, r, juce::Justification::centred, 1);
+          
+    }
+
 }
 
 juce::Rectangle<int> ResponseCurveComponent::getRenderArea() //Check how much rectangle I want to reduce to dont cover the -24 and +24 gain in the Response Area

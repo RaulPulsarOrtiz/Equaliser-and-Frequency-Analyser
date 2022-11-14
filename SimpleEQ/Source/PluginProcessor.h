@@ -5,6 +5,114 @@
 */
 #pragma once
 #include <JuceHeader.h>
+#include <array>
+template<typename T>
+struct Fifo
+{
+    void prepare(int numChannels, int numSamples)
+    {
+        for (auto& buffer : buffers)
+        {
+            buffer.setSize(numChannels,    
+                             numSamples, 
+                             false,  //clear everything?
+                             true,   //including the extra space?
+                             true);  //avoid reallocating if you can?
+            buffer.clear();
+        }
+    }
+
+    bool push(const T& t)
+    {
+        auto write = fifo.write(1);
+        if (write.blockSize1 > 0)
+        {
+            buffers[write.startIndex1] = t;
+            return true;
+        }
+        return false;
+    }
+
+    int getnumAvailableForReading() const
+    {
+        return fifo.getNumReady();
+    }
+private:
+    static constexpr int Capacity = 30;
+    std::array<T, Capacity> buffers;
+    juce::AbstractFifo fifo{ Capacity };
+};
+
+enum Channel //FFT works for each channel of audio
+{
+    Right, //effectively 0 
+    Left // effectively 1
+};
+   
+template<typename BlockType>
+struct SingleChannelSampleFifo
+{
+    SingleChannelSampleFifo(Channel ch) : channelToUse(ch)
+    {
+        prepared.set(false);
+    }
+
+    void update(const BlockType& buffer)
+    {
+        jassert(prepared.get());
+        jassert(buffer.getNumChannels() > channelToUse);
+        auto* channelPtr = buffer.getReadPointer(channelToUse);
+        for (int i = 0; i < buffer.getNumSamples(); ++i)
+        {
+            pushNextSampleIntoFifo(channelPtr[i]);
+        }
+    }
+
+    void prepare(int bufferSize)
+    {
+        prepared.set(false);
+        size.set(bufferSize);
+
+        bufferToFill.setSize(1,                  //channel
+                             bufferSize,         // num samples
+                             false,              //KeepExistingContent
+                             true,               //clear extra space
+                             true);              //avoid reallocating
+        audioBufferFifo.prepare(1, bufferSize);
+        fifoIndex = 0;
+        prepared.set(true);
+    }
+    //==============================================================================
+    int getNumCompleteBufferAvailable() const { return audioBufferFifo.getNumAvailableForReading(); }
+    bool isPrepared() const { return prepared.get(); }
+    int getSize() const { return size.get(); }
+    //==============================================================================
+    bool getAudioBuffer(BlockType& buf) { return audioBufferFifo.pull(buf); }
+
+private:
+    Channel channelToUse;
+    int fifoIndex = 0;
+    Fifo <BlockType> audioBufferFifo;
+    BlockType bufferToFill;
+    juce::Atomic<bool> prepared = false;
+    juce::Atomic<int> size = 0;
+
+    void pushNextSampleIntoFifo(float sample)
+    {
+        if (fifoIndex == bufferToFill.getNumSamples())
+        {
+            auto ok = audioBufferFifo.push(bufferToFill);
+
+            juce::ignoreUnused(ok);
+
+            fifoIndex = 0;
+        }
+
+        bufferToFill.setSample(0, fifoIndex, sample);
+        ++fifoIndex;
+    }
+};
+
 enum Slope
 {
     Slope_12,

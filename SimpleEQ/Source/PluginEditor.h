@@ -7,6 +7,142 @@
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
 
+enum FFTOrder  //FFT Data Generator configuration
+{
+    order2048 = 11, //at 48000 sampleRate each bin represent 23 Hertz This means a lot of resolution in the upper end and not very good resolution in the bottom end 
+    order4096 = 12,
+    order8192 = 13
+};
+
+template<typename BlockType>
+struct FFTDataGenerator
+{
+    /** produces the FFT data form an audio buffer */
+    void produceFFTDataForRendering(const juce::AudioBuffer<float>& audioData, const float negativeInfinity) //Feed audio to the FFT
+    {
+        const auto fftSize = getFFTSize();
+
+        fftData.assign(fftData.size(), 0);
+        auto* readIndex = audioData.getReadPointer(0);
+        std::copy(readIndex, readIndex + fftSize, fftData.begin());
+
+        //First apply a windowing function to our data
+        window->multiplyWithWindowingTable(fftData.data(), fftSize);
+
+        //then render our FFT data..
+        forwardFFT->performFrequencyOnlyForwardTransform(fftData.data());
+
+        int numBins = (int)fftSize / 2;
+
+        //normalise the fft values
+        for (int i = 0; i < numBins; ++i)
+        {
+            fftData[i] /= (float)numBins;
+        }
+
+        //convert them to decibels
+        for (int i = 0; i < numBins; ++i)
+        {
+            fftData[i] = juce::Decibels::gainToDecibels(fftData[i], negativeInfinity);
+        }
+
+        fftDataFifo.push(fftData);
+    }
+
+    void changeOrder(FFTOrder newOrder)
+    {
+        //When you change order, recreate the window, dorwardFFT, fifo, fftData
+        //also reset the fifoIndex
+        //things that need recreating should be created on the heap via st::make_unique<>
+
+        order = newOrder;
+        auto fftSize = getFFTSize();
+
+        forwardFFT = std::make_unique<juce::dsp::FFT>(order);
+        window = std::make_unique<juce::dsp::WindowingFunction<float>>(fftSize, juce::dsp::WindowingFunction<float>::blackmanHarris);
+
+        fftData.clear();
+        fftData.resize(fftSize * 2, 0);
+
+        fftDataFifo.prepare(fftData.size());
+    }
+    //==============================================================================
+    int getFFTSize() const { return 1 << order; } 
+    int getNumAvailableFFTDataBlocks() const { return fftDataFifo.getNumAvailableForReading(); } //Here we see ho much FFT data we have
+    //==============================================================================
+    bool getFFTData(BlockType& fftData) { return fftDataFifo.pull(fftData); } //Here is where we get our FFT data available
+private:
+    FFTOrder order;
+    BlockType fftData;
+    std::unique_ptr<juce::dsp::FFT> forwardFFT;
+    std::unique_ptr<juce::dsp::WindowingFunction<float>> window;
+
+    Fifo<BlockType> fftDataFifo;
+};
+
+
+template<typename PathType>
+struct AnalyserPathGenerator
+{
+    /*
+    converts 'renderdata[]' into a juce::Path 
+    */
+    void generatePath(const std::vector<float>& renderData,
+                      juce::Rectangle<float> fftBounds,
+                      int fftSize, float binWidth,
+                      float negativeInfinity)
+    {
+        auto top = fftBounds.getY();
+        auto bottom = fftBounds.getHeight();
+        auto width = fftBounds.getWidth();
+
+        int numBins = (int)fftSize / 2;
+
+        PathType p;
+        p.preallocateSpace(3 * (int)fftBounds.getWidth());
+
+        auto map = [bottom, top, negativeInfinity](float v)
+        {
+            return juce::jmap(v, negativeInfinity, 0.f, float(bottom), top);
+        };
+
+        auto y = map(renderData[0]);
+
+        jassert(!std::isnan(y) && !std::isinf(y));
+
+        p.startNewSubPath(0, y);
+
+        const int pathResolution = 2; //you can draw line-to's every 'pathResolution' pixels
+
+        for (int binNum = 1; binNum < numBins; binNum += pathResolution)
+        {
+            y = map(renderData[binNum]);
+
+            jassert(!std::isnan(y) && !std::isinf(y));
+            {
+                auto binFreq = binNum * binWidth;
+                auto normalisedBinX = juce::mapFromLog10(binFreq, 1.f, 20000.f);
+                int binX = std::floor(normalisedBinX * width);
+                p.lineTo(binX, y);
+            }
+        }
+        pathFifo.push(p);
+    }
+    
+    int getNumPathsAvailable() const
+    {
+        return pathFifo.getNumAvailableForReading();
+    }
+
+    bool getPath(PathType& path)
+    {
+        return pathFifo.pull(path);
+    }
+
+private:
+    Fifo<PathType> pathFifo;
+};
+
 struct LookAndFeels : juce::LookAndFeel_V4 
 {
     void drawRotarySlider(Graphics&, int x, int y, int width, int height,
@@ -70,6 +206,15 @@ private:
 
     juce::Rectangle<int> getRenderArea();
     juce::Rectangle<int> getAnalysisArea(); //Is going to be a little bit smaller than the RenderArea
+
+    SingleChannelSampleFifo<SimpleEQAudioProcessor::BlockType>* leftChannelFifo;
+
+    juce::AudioBuffer<float> monoBuffer; //That are going to be send from the SCSF to the FFT Data Generator
+    FFTDataGenerator<std::vector<float>> leftChannelFFTDataGenerator;
+
+    AnalyserPathGenerator<juce::Path> pathProducer; //Producing a path in our path generator
+
+    juce::Path leftChannelFFTPath;
 };
 
 

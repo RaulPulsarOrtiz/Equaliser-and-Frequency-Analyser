@@ -158,7 +158,7 @@ juce::String RotarySliderWithLabels::getDisplayString() const
 }
 //==============================================================================
 
-ResponseCurveComponent::ResponseCurveComponent(SimpleEQAudioProcessor& p) : audioProcessor(p)
+ResponseCurveComponent::ResponseCurveComponent(SimpleEQAudioProcessor& p) : audioProcessor(p), leftChannelFifo(&audioProcessor.leftChannelFifo)
 {
 
     const auto& params = audioProcessor.getParameters();
@@ -166,6 +166,11 @@ ResponseCurveComponent::ResponseCurveComponent(SimpleEQAudioProcessor& p) : audi
     {
         param->addListener(this);
     }
+
+    //Split the audio spectrum from 20Hz to 20KHz into 2048 or 4096 or 8192 frequency bins
+    leftChannelFFTDataGenerator.changeOrder(FFTOrder::order2048);
+    monoBuffer.setSize(1, leftChannelFFTDataGenerator.getFFTSize());
+     
 
     updateChain(); //Loading the previous configuration I want see that already drawn in the curve. Thats why I use this here
 
@@ -188,12 +193,74 @@ void ResponseCurveComponent::parameterValueChanged(int parameterIndex, float new
 
 void ResponseCurveComponent::timerCallback()
 {
+    //Here we are going to coordinate the SingleChannelSampleFifo with the FFT DataGenerator with the Path Producer and with the GUI draw.
+    //First is the SCSF. While there are buffer to pull, if we can pull a buffer we are going to send it to the FFT Data Generator
+    //Fisrtly, we need a temporal buffer to pull in to:
+    juce::AudioBuffer<float> tempIncomingBuffer;
+
+    while (leftChannelFifo->getNumCompleteBufferAvailable() > 0)
+    {
+        if (leftChannelFifo->getAudioBuffer(tempIncomingBuffer))
+        {
+            auto size = tempIncomingBuffer.getNumSamples();                             
+                                                                                    //SCSF
+                                                                                    //With this method, monoBuffer never change the size
+            juce::FloatVectorOperations::copy(monoBuffer.getWritePointer(0, 0),     //Shifting over the Data
+                                              monoBuffer.getReadPointer(0, size),
+                                              monoBuffer.getNumSamples() - size);
+
+            juce::FloatVectorOperations::copy(monoBuffer.getWritePointer(0, monoBuffer.getNumSamples() - size), //Copying this to the end
+                                              tempIncomingBuffer.getReadPointer(0, 0),
+                                              size);
+
+            leftChannelFFTDataGenerator.produceFFTDataForRendering(monoBuffer, -48.f);
+        }
+    }
+
+    /*
+    if there are FFT dataBuffers to pull
+    if we can pull a buffer
+    generate a path
+    */
+
+    const auto fftBounds = getAnalysisArea().toFloat();
+    const auto fftSize = leftChannelFFTDataGenerator.getFFTSize();
+
+    /*
+    sample rate / FFT size
+    4800 / 2048 = 23hz <- this is the bin width
+    */
+    const auto binWidth = audioProcessor.getSampleRate() / (double)fftSize; //SampleRate is a double
+
+    while (leftChannelFFTDataGenerator.getNumAvailableFFTDataBlocks() > 0) //check if FFT has data blocks
+    {
+        std::vector<float> fftData; //temporary vector to store the block data and later feed into the path producer
+        if (leftChannelFFTDataGenerator.getFFTData(fftData)) //pull one block
+        {
+            pathProducer.generatePath(fftData, fftBounds, fftSize, binWidth, -48.f);
+        }
+    }
+
+    /*
+    while there are paths that can be pull
+    pull as many as we can
+    because we want to display the most recent path
+    */
+
+    while (pathProducer.getNumPathsAvailable())
+    {
+        pathProducer.getPath(leftChannelFFTPath);
+    }
+
+
+
     if (parametersChanged.compareAndSetBool(false, true))
     {
         updateChain();
-        //signal a repaint
-        repaint();
+        //signal a repaint 
+       // repaint(); Before we are only repainting whenever the parameters are changed. But now we are pulling paths all the time we need to repaint all the time
     }
+    repaint();
 }
 
 void ResponseCurveComponent::updateChain() //Helper function to have the curve drawn the first time that the plugin is load. (Because previous configuration keeps on from the previous time)
@@ -283,6 +350,11 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
         {
             responseCurve.lineTo(responseArea.getX() + i, map(mags[i]));
         }
+
+        //Draw our frequency analysr before we draw our renderer area
+        g.setColour(Colours::blue);
+        g.strokePath(leftChannelFFTPath, PathStrokeType(1.f));
+
 
         g.setColour(Colours::orange);
         g.drawRoundedRectangle(getRenderArea().toFloat(), 4.f, 1.f);

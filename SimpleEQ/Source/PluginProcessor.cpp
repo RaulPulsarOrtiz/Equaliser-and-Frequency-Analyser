@@ -109,6 +109,9 @@ void SimpleEQAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBloc
     //        updateCutFilter(leftHighCut, highCutCoefficients, chainSettings.highCutSlope);
     //        updateCutFilter(rightHighCut, highCutCoefficients, chainSettings.highCutSlope);
     updateFilters();
+
+    leftChannelFifo.prepare(samplesPerBlock);
+    rightChannelFifo.prepare(samplesPerBlock);
 }
 void SimpleEQAudioProcessor::releaseResources()
 {
@@ -283,6 +286,11 @@ void SimpleEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     //Pass this context to the monoFilters:
     leftChain.process(leftContext);
     rightChain.process(rightContext);
+
+    leftChannelFifo.update(buffer);
+    rightChannelFifo.update(buffer );
+
+
     // This is the place where you'd normally do the guts of your plugin's
     // audio processing...
     // Make sure to reset the state if your inner loop is processing

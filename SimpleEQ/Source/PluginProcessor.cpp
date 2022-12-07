@@ -87,6 +87,8 @@ void SimpleEQAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBloc
     //Pass those spec especifications to the Filters:
     leftChain.prepare(spec);
     rightChain.prepare(spec);
+
+    //
     //       auto chainSettings = getChainSettings(apvts); //Settings from the apvts
     //       
     //        updatePeakFilter(chainSettings);
@@ -112,6 +114,12 @@ void SimpleEQAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBloc
 
     leftChannelFifo.prepare(samplesPerBlock);
     rightChannelFifo.prepare(samplesPerBlock);
+
+    //The oscillator wants a funcion that return a value when you feed it a radian angle
+    osc.initialise([](float x) {return std::sin(x); });
+    spec.numChannels = getTotalNumOutputChannels();
+    osc.prepare(spec);
+    osc.setFrequency(15000);
 }
 void SimpleEQAudioProcessor::releaseResources()
 {
@@ -275,8 +283,16 @@ void SimpleEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
                                                     //   
                                                     //      updateCutFilter(leftHighCut, highCutCoefficients, chainSettings.highCutSlope);
                                                     //      updateCutFilter(rightHighCut, highCutCoefficients, chainSettings.highCutSlope);
-    // Run Audio Through our plugin
+                                                   
+    
+// Run Audio Through our plugin
     juce::dsp::AudioBlock<float> block(buffer); //Create an Audio Block that wrap this buffer
+   
+    //Testing Osc tone
+  //    buffer.clear();
+  //  juce::dsp::ProcessContextReplacing<float> stereoContext(block); //Osc testing
+  //  osc.process(stereoContext);
+
     //Extract individual channel from the buffer:
     auto leftBlock = block.getSingleChannelBlock(0);
     auto rightBlock = block.getSingleChannelBlock(1);
@@ -288,7 +304,7 @@ void SimpleEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce
     rightChain.process(rightContext);
 
     leftChannelFifo.update(buffer);
-    rightChannelFifo.update(buffer );
+    rightChannelFifo.update(buffer);
 
 
     // This is the place where you'd normally do the guts of your plugin's

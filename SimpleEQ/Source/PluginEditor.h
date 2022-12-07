@@ -121,7 +121,7 @@ struct AnalyserPathGenerator
             jassert(!std::isnan(y) && !std::isinf(y));
             {
                 auto binFreq = binNum * binWidth;
-                auto normalisedBinX = juce::mapFromLog10(binFreq, 1.f, 20000.f);
+                auto normalisedBinX = juce::mapFromLog10(binFreq, 20.f, 20000.f);
                 int binX = std::floor(normalisedBinX * width);
                 p.lineTo(binX, y);
             }
@@ -182,6 +182,27 @@ private: juce::RangedAudioParameter* param;
        LookAndFeels lnf;
 };
 
+struct PathProducer
+{
+    PathProducer(SingleChannelSampleFifo<SimpleEQAudioProcessor::BlockType>& scsf) : leftChannelFifo(&scsf)
+    {
+        //Split the audio spectrum from 20Hz to 20KHz into 2048 or 4096 or 8192 frequency bins
+        leftChannelFFTDataGenerator.changeOrder(FFTOrder::order2048);
+        monoBuffer.setSize(1, leftChannelFFTDataGenerator.getFFTSize());
+    }
+    void process(juce::Rectangle<float> fftBounds, double sameplRate);
+    juce::Path getPath() { return leftChannelFFTPath; }
+private:
+    SingleChannelSampleFifo<SimpleEQAudioProcessor::BlockType>* leftChannelFifo;
+
+    juce::AudioBuffer<float> monoBuffer; //That are going to be send from the SCSF to the FFT Data Generator
+    FFTDataGenerator<std::vector<float>> leftChannelFFTDataGenerator;
+
+    AnalyserPathGenerator<juce::Path> pathProducer; //Producing a path in our path generator
+
+    juce::Path leftChannelFFTPath;
+};
+
 struct ResponseCurveComponent: juce::Component,
                                juce::AudioProcessorParameter::Listener,
                                juce::Timer
@@ -207,14 +228,7 @@ private:
     juce::Rectangle<int> getRenderArea();
     juce::Rectangle<int> getAnalysisArea(); //Is going to be a little bit smaller than the RenderArea
 
-    SingleChannelSampleFifo<SimpleEQAudioProcessor::BlockType>* leftChannelFifo;
-
-    juce::AudioBuffer<float> monoBuffer; //That are going to be send from the SCSF to the FFT Data Generator
-    FFTDataGenerator<std::vector<float>> leftChannelFFTDataGenerator;
-
-    AnalyserPathGenerator<juce::Path> pathProducer; //Producing a path in our path generator
-
-    juce::Path leftChannelFFTPath;
+    PathProducer leftPathProducer, rightPathProducer;
 };
 
 
@@ -242,20 +256,7 @@ private:
         lowCutSlopeSlider, highCutSlopeSlider;
 
     ResponseCurveComponent responseCurveComponent;
-    //using APVTS = juce::AudioProcessorValueTreeState;
-    //using Attachment = APVTS::SliderAttachment;
-    //Attachment peakFreakSliderAttachment, peakGainSliderAttachment, peakQualitySliderAttachment, lowCutFreqSliderAttachment, highCutFreqSliderAttachment, lowCutSlopeSliderAttachment, highCutSlopeSliderAttachment;
-    //juce::AupeakGainSliderAttachment;dioProcessorValueTreeState::SliderAttachment peakFreakSliderAttachment;
-    //juce::AupeakQualitySliderAttachment;dioProcessorValueTreeState::SliderAttachment peakGainSliderAttachment;
-    //juce::Au lowCutFreqSliderAttachment;dioProcessorValueTreeState::SliderAttachment peakQualitySliderAttachment;
-    //juce::Au highCutFreqSliderAttachment;dioProcessorValueTreeState::SliderAttachment  lowCutFreqSliderAttachment;
-     //juce::AudioProcessorValueTreeState::SliderAttachment  highCutFreqSliderAttachment;
-     //    juce::AudioProcessorValueTreeState::SliderAttachment  lowCutSlopeSliderAttachment;
-     //        juce::AudioProcessorValueTreeState::SliderAttachment   highCutSlopeSliderAttachment;
-   // using APVTS = juce::AudioProcessorValueTreeState;
-   // using Attachment = APVTS::SliderAttachment;
-    //Attachment needs to be below of the sliders(CustomRotarySlider)
-  //  Attachment peakFreakSliderAttachment, peakGainSliderAttachment, peakQualitySliderAttachment, lowCutFreqSliderAttachment, highCutFreqSliderAttachment, lowCutSlopeSliderAttachment, highCutSlopeSliderAttachment;
+    
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> peakGainSliderAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> peakFreqSliderAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> peakQualitySliderAttachment;

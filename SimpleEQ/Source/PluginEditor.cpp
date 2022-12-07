@@ -12,10 +12,10 @@ void LookAndFeels::drawRotarySlider(Graphics& g, int x, int y, int width, int he
 {
     auto bounds = Rectangle<float>(x, y, width, height);
 
-    g.setColour(Colour(97u, 18u, 167u));
+    g.setColour(Colour(255u, 0u, 0u));
     g.fillEllipse(bounds);
 
-    g.setColour(Colour(255u, 154u, 1u));
+    g.setColour(Colour(255u, 255u, 255u));
     g.drawEllipse(bounds, 1.f);
 
     if (auto* rswl = dynamic_cast<RotarySliderWithLabels*>(&slider))
@@ -66,11 +66,6 @@ void RotarySliderWithLabels::paint(juce::Graphics& g)
     auto range = getRange();
 
     auto sliderBounds = getSliderBounds();
-
-    //g.setColour(Colours::red);
-    //g.drawRect(getLocalBounds());
-    //g.setColour(Colours::yellow);
-    //g.drawRect(sliderBounds);
 
     getLookAndFeel().drawRotarySlider(g, sliderBounds.getX(), sliderBounds.getY(), sliderBounds.getWidth(), sliderBounds.getHeight(), 
                                       jmap(getValue(), range.getStart(), range.getEnd(), 0.0, 1.0), //Here is where we map our sliders. We turn our slider values into normalised values
@@ -158,7 +153,9 @@ juce::String RotarySliderWithLabels::getDisplayString() const
 }
 //==============================================================================
 
-ResponseCurveComponent::ResponseCurveComponent(SimpleEQAudioProcessor& p) : audioProcessor(p), leftChannelFifo(&audioProcessor.leftChannelFifo)
+ResponseCurveComponent::ResponseCurveComponent(SimpleEQAudioProcessor& p) : audioProcessor(p), 
+                                            /*leftChannelFifo(&audioProcessor.leftChannelFifo) */ leftPathProducer(audioProcessor.leftChannelFifo), 
+                                                                                                  rightPathProducer(audioProcessor.rightChannelFifo)
 {
 
     const auto& params = audioProcessor.getParameters();
@@ -166,11 +163,6 @@ ResponseCurveComponent::ResponseCurveComponent(SimpleEQAudioProcessor& p) : audi
     {
         param->addListener(this);
     }
-
-    //Split the audio spectrum from 20Hz to 20KHz into 2048 or 4096 or 8192 frequency bins
-    leftChannelFFTDataGenerator.changeOrder(FFTOrder::order2048);
-    monoBuffer.setSize(1, leftChannelFFTDataGenerator.getFFTSize());
-     
 
     updateChain(); //Loading the previous configuration I want see that already drawn in the curve. Thats why I use this here
 
@@ -191,46 +183,45 @@ void ResponseCurveComponent::parameterValueChanged(int parameterIndex, float new
     parametersChanged.set(true);
 }
 
-void ResponseCurveComponent::timerCallback()
+void PathProducer::process(juce::Rectangle<float> fftBounds, double sampleRate)
 {
     //Here we are going to coordinate the SingleChannelSampleFifo with the FFT DataGenerator with the Path Producer and with the GUI draw.
-    //First is the SCSF. While there are buffer to pull, if we can pull a buffer we are going to send it to the FFT Data Generator
-    //Fisrtly, we need a temporal buffer to pull in to:
+   //First is the SCSF. While there are buffer to pull, if we can pull a buffer we are going to send it to the FFT Data Generator
+   //Fisrtly, we need a temporal buffer to pull in to:
     juce::AudioBuffer<float> tempIncomingBuffer;
 
     while (leftChannelFifo->getNumCompleteBufferAvailable() > 0)
     {
         if (leftChannelFifo->getAudioBuffer(tempIncomingBuffer))
         {
-            auto size = tempIncomingBuffer.getNumSamples();                             
-                                                                                    //SCSF
-                                                                                    //With this method, monoBuffer never change the size
+            auto size = tempIncomingBuffer.getNumSamples();
+            //SCSF
+            //With this method, monoBuffer never change the size
             juce::FloatVectorOperations::copy(monoBuffer.getWritePointer(0, 0),     //Shifting over the Data
-                                              monoBuffer.getReadPointer(0, size),
-                                              monoBuffer.getNumSamples() - size);
+                monoBuffer.getReadPointer(0, size),
+                monoBuffer.getNumSamples() - size);
 
             juce::FloatVectorOperations::copy(monoBuffer.getWritePointer(0, monoBuffer.getNumSamples() - size), //Copying this to the end
-                                              tempIncomingBuffer.getReadPointer(0, 0),
-                                              size);
+                tempIncomingBuffer.getReadPointer(0, 0),
+                size);
 
             leftChannelFFTDataGenerator.produceFFTDataForRendering(monoBuffer, -48.f);
         }
     }
-
     /*
     if there are FFT dataBuffers to pull
     if we can pull a buffer
     generate a path
     */
 
-    const auto fftBounds = getAnalysisArea().toFloat();
+    //const auto fftBounds = getAnalysisArea().toFloat(); Now (after make my own PathProducer class) this is a function argument so we can ger rid of this
     const auto fftSize = leftChannelFFTDataGenerator.getFFTSize();
 
     /*
     sample rate / FFT size
     4800 / 2048 = 23hz <- this is the bin width
     */
-    const auto binWidth = audioProcessor.getSampleRate() / (double)fftSize; //SampleRate is a double
+    const auto binWidth = sampleRate / (double)fftSize; //SampleRate is a double
 
     while (leftChannelFFTDataGenerator.getNumAvailableFFTDataBlocks() > 0) //check if FFT has data blocks
     {
@@ -251,7 +242,16 @@ void ResponseCurveComponent::timerCallback()
     {
         pathProducer.getPath(leftChannelFFTPath);
     }
+}
 
+void ResponseCurveComponent::timerCallback()
+{
+   
+    auto fftBounds = getAnalysisArea().toFloat();
+    auto sampleRate = audioProcessor.getSampleRate();
+    
+    leftPathProducer.process(fftBounds, sampleRate);
+    rightPathProducer.process(fftBounds, sampleRate);
 
 
     if (parametersChanged.compareAndSetBool(false, true))
@@ -351,10 +351,19 @@ void ResponseCurveComponent::paint(juce::Graphics& g)
             responseCurve.lineTo(responseArea.getX() + i, map(mags[i]));
         }
 
-        //Draw our frequency analysr before we draw our renderer area
-        g.setColour(Colours::blue);
+        auto leftChannelFFTPath = leftPathProducer.getPath();
+        //Draw our frequency analysis before we draw our renderer area
+
+        //We need our pathGenerator taking in account the origin of the rectangle that defines the Analysis bounding box. 
+       // leftChannelFFTPath.applyTransform(AffineTransform().translation(responseArea.getX(), responseArea.getY())); //This is getting the blue line in the eadge bottom of the analyser
+        leftChannelFFTPath.scaleToFit(responseArea.getX(), responseArea.getY(), responseArea.getWidth(), responseArea.getHeight(), true);
+        g.setColour(Colours::skyblue);
         g.strokePath(leftChannelFFTPath, PathStrokeType(1.f));
 
+        auto rightChannelFFTPath = rightPathProducer.getPath();
+        rightChannelFFTPath.scaleToFit(responseArea.getX(), responseArea.getY(), responseArea.getWidth(), responseArea.getHeight(), true);
+        g.setColour(Colours::lightyellow);
+        g.strokePath(rightChannelFFTPath, PathStrokeType(1.f));
 
         g.setColour(Colours::orange);
         g.drawRoundedRectangle(getRenderArea().toFloat(), 4.f, 1.f);

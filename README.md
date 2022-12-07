@@ -1,4 +1,4 @@
-Equaliser + Frequency-Analyser
+# Equaliser + Frequency-Analyser
 
 Equalizer plugin based on a LPF, BPF and HPF. Created in JUCE framework.
 The LPF and the HPF have a 'Frequency Cutoff' and a 'Slope' to choose how many dB per octave will be attenuated.
